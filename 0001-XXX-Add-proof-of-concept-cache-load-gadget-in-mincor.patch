@@ -1,0 +1,53 @@
+From 2d81948885c8e3e33f755a210257ff661710cbf8 Mon Sep 17 00:00:00 2001
+From: Julian Stecklina <jsteckli@amazon.de>
+Date: Tue, 13 Nov 2018 18:07:20 +0100
+Subject: [PATCH] XXX Add proof-of-concept cache load gadget in mincore()
+
+Instead of looking for a suitable gadget for L1TF, add one in the
+error-case of mincore().
+
+Signed-off-by: Julian Stecklina <jsteckli@amazon.de>
+---
+ mm/mincore.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 4985965aa20a..8d6ac2e04920 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -229,8 +229,31 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+ 	unsigned char *tmp;
+ 
+ 	/* Check the start address: needs to be page-aligned.. */
+-	if (start & ~PAGE_MASK)
++	if (start & ~PAGE_MASK) {
++
++		/*
++		 * XXX Hack
++		 *
++		 * We re-use this error case to show case a cache load gadget:
++		 * There is a mispredicted branch, which leads to prefetching
++		 * the cache with attacker controlled data.
++		 */
++		asm volatile (
++			/* Set up a misprediction */
++			"call 2f\n"
++
++			/* Prefetch data into cache and abort speculation */
++			"mov (%[ptr]), %%rax\n"
++			"pause\n"
++
++			/* Patch return address */
++			"2: movq $3f, (%%rsp)\n"
++			"ret\n"
++			"3:\n"
++			:: [ptr] "r" (vec));
++
+ 		return -EINVAL;
++	}
+ 
+ 	/* ..and we need to be passed a valid user-space range */
+ 	if (!access_ok(VERIFY_READ, (void __user *) start, len))
+-- 
+2.17.1
+
