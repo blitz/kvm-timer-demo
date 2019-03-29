@@ -153,11 +153,9 @@ public:
   void add_memory_region(uint64_t gpa, uint64_t size, void *backing, bool readonly = false)
   {
     int rc;
-    const kvm_userspace_memory_region slotinfo {
-      (uint32_t)memory_slots_,
-        (uint32_t)(readonly ? KVM_MEM_READONLY : 0),
-        gpa, size, (uintptr_t)backing,
-        };
+    const kvm_userspace_memory_region slotinfo { (uint32_t)memory_slots_,
+                                                 (uint32_t)(readonly ? KVM_MEM_READONLY : 0),
+                                                 gpa, size, (uintptr_t)backing };
 
     rc = ioctl(vm.fd(), KVM_SET_USER_MEMORY_REGION, &slotinfo);
     die_on(rc < 0, "KVM_SET_USER_MEMORY_REGION");
@@ -181,7 +179,7 @@ public:
     char backing[sizeof(kvm_cpuid2) + max_cpuid_leafs*sizeof(kvm_cpuid_entry2)] {};
     kvm_cpuid2 *leafs = reinterpret_cast<kvm_cpuid2 *>(backing);
     int rc;
-		
+
     leafs->nent = max_cpuid_leafs;
     rc = ioctl(dev_kvm.fd(), KVM_GET_SUPPORTED_CPUID, leafs);
     die_on(rc != 0, "ioctl(KVM_GET_SUPPORTED_CPUID)");
