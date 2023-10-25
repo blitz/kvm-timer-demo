@@ -153,9 +153,15 @@ public:
     die_on(rc != sizeof(si) && errno != EAGAIN, "failed to clear timer");
   }
 
+  /*
+   * Program a relative timeout.
+   *
+   * This timeout starts running now. When it expires, KVM_RUN will return EINTR with exit reason KVM_EXIT_INTR.
+   */
   template <typename REP, typename PERIOD>
   void arm_timer(std::chrono::duration<REP, PERIOD> rel_timeout)
   {
+    // SIGUSR1 stays pending until we clear it. If we don't, the next KVM_RUN will immediately exit with EINTR.
     clear_pending_timer_event();
 
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(rel_timeout);
@@ -178,7 +184,7 @@ public:
     enable_long_mode();
 
 
-    // Create timer that fires SIGUSR1
+    // Create timer that fires SIGUSR1 when it expires.
     struct sigevent sevp {};
 
     sevp.sigev_notify = SIGEV_THREAD_ID;
@@ -190,17 +196,20 @@ public:
 
     die_on(timer_create(CLOCK_MONOTONIC, &sevp, &timer) != 0, "failed to create timer");
 
-    // Block SIGUSR1
-    sigset_t sigset_old;
+    // Block SIGUSR1 from actually being delivered to this thread.
     sigset_t sigset;
     sigemptyset(&sigset);
     sigaddset(&sigset, SIGUSR1);
 
-    die_on(sigprocmask(SIG_BLOCK, &sigset, &sigset_old) != 0, "failed to block signal");
+    sigset_t sigset_old;
+    die_on(pthread_sigmask(SIG_BLOCK, &sigset, &sigset_old) != 0, "failed to block signal");
 
-    // Allow SIGUSR1 to interrupt KVM_RUN.
+    // KVM allows us to atomically swap the signal mask. We set the original signal mask here, which allows SIGUSR1 to
+    // interrupt KVM_RUN.
     vcpu_.set_signal_mask(sigset_old);
 
+    // Create a signalfd for clear_pending_timer_event(). The alternative would be to actually deliver the signal to
+    // clear itm which would require calls to sigprocmask.
     timer_signal_fd = signalfd(-1, &sigset, SFD_NONBLOCK);
     die_on(timer_signal_fd < 0, "failed to create signalfd");
   }
