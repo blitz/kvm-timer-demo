@@ -1,5 +1,5 @@
 {
-  description = "A demonstrator for L1TF/Foreshadow";
+  description = "KVM Userspace Prototypes";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
 

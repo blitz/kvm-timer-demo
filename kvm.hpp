@@ -80,7 +80,7 @@ public:
 
   void run()
   {
-    die_on(ioctl(vcpu_fd.fd(), KVM_RUN, 0) < 0, "KVM_RUN");
+    die_on(ioctl(vcpu_fd.fd(), KVM_RUN, 0) < 0 && errno != EINTR, "KVM_RUN");
   }
 
   kvm_regs get_regs()
@@ -118,6 +118,22 @@ public:
     std::copy_n(entries.begin(), entries.size(), leafs->entries);
     rc = ioctl(vcpu_fd.fd(), KVM_SET_CPUID2, leafs);
     die_on(rc != 0, "ioctl(KVM_SET_CPUID2)");
+  }
+
+  void set_signal_mask(sigset_t sigset)
+  {
+    char backing[sizeof(kvm_signal_mask) + sizeof(unsigned long)] {};
+    kvm_signal_mask *signal_mask = reinterpret_cast<kvm_signal_mask *>(backing);
+    int rc;
+
+    // The userspace definition of sigset_t doesn't match the kernel's definition.
+    signal_mask->len = sizeof(unsigned long);
+
+    die_on(signal_mask->len > sizeof(sigset), "sigset broken");
+    memcpy(signal_mask->sigset, &sigset, signal_mask->len);
+
+    rc = ioctl(vcpu_fd.fd(), KVM_SET_SIGNAL_MASK, signal_mask);
+    die_on(rc != 0, "ioctl(KVM_SET_SIGNAL_MASK)");
   }
 
   kvm_vcpu(int fd, size_t mmap_size)

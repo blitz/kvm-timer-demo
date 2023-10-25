@@ -1,4 +1,5 @@
 *.d
 *.inc
-/l1tf
+/timer
 /result*
+/.direnv
