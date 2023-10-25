@@ -144,7 +144,7 @@ public:
 
   size_t get_vcpu_mmap_size()
   {
-    int size = ioctl(dev_kvm.fd(), KVM_GET_VCPU_MMAP_SIZE);
+    int size = ioctl(dev_kvm.fd(), KVM_GET_VCPU_MMAP_SIZE, 0);
 
     die_on(size < 0, "KVM_GET_VCPU_MMAP_SIZE");
     return (size_t)size;
