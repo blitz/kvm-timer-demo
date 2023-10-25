@@ -1,3 +1,4 @@
 *.d
 *.inc
 /l1tf
+/result*
