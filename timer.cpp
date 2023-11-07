@@ -14,7 +14,6 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/syscall.h>
-#include <sys/signalfd.h>
 #include <unistd.h>
 
 #include "kvm.hpp"
@@ -83,7 +82,6 @@ class timeout_vm {
   page_table page_table_ { &kvm_, page_table_base };
 
   timer_t timer;
-  int timer_signal_fd;
 
   /*
    * Set up the control and segment register state to enter 64-bit mode
@@ -146,11 +144,17 @@ public:
 
   void clear_pending_timer_event()
   {
-    struct signalfd_siginfo si;
-    int rc;
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGUSR1);
 
-    rc = read(timer_signal_fd, &si, sizeof(si));
-    die_on(rc != sizeof(si) && errno != EAGAIN, "failed to clear timer");
+    struct timespec timeout = {
+      .tv_sec = 0,
+      .tv_nsec = 0,
+    };
+
+    int rc = sigtimedwait(&sigset, nullptr, &timeout);
+    die_on(rc < 0 && errno != EAGAIN, "failed to clear timer");
   }
 
   /*
@@ -207,11 +211,6 @@ public:
     // KVM allows us to atomically swap the signal mask. We set the original signal mask here, which allows SIGUSR1 to
     // interrupt KVM_RUN.
     vcpu_.set_signal_mask(sigset_old);
-
-    // Create a signalfd for clear_pending_timer_event(). The alternative would be to actually deliver the signal to
-    // clear itm which would require calls to sigprocmask.
-    timer_signal_fd = signalfd(-1, &sigset, SFD_NONBLOCK);
-    die_on(timer_signal_fd < 0, "failed to create signalfd");
   }
 };
 
@@ -219,15 +218,17 @@ int main()
 {
   timeout_vm vm;
 
-  vm.arm_timer(std::chrono::milliseconds{1});
-  uint64_t reps1 = vm.run();
+  for (int timeout = 1; timeout < 50; timeout++) {
+    vm.arm_timer(std::chrono::milliseconds{timeout});
 
+    auto time_before = std::chrono::steady_clock::now();
+    uint64_t reps = vm.run();
+    auto time_after = std::chrono::steady_clock::now();
 
-  vm.arm_timer(std::chrono::milliseconds{2});
-  uint64_t reps2 = vm.run();
+    uint64_t actual_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before).count();
 
-  std::cout << "Reps: " << reps1 << std::endl;
-  std::cout << "Reps: " << reps2 << std::endl;
+    std::cout << "timeout " << timeout << "ms (took " << actual_ms <<  "ms) -> reps " << reps << std::endl;
+  }
 
   return 0;
 }
