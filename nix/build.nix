@@ -26,5 +26,6 @@ stdenv.mkDerivation {
   meta = {
     description = "KVM Userspace Prototypes: KVM Timer";
     license = lib.licenses.gpl2Only;
+    mainProgram = "timer";
   };
 }
