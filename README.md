@@ -1,6 +1,6 @@
 ## Overview
 
-This repository contains a small KVM timer demo. See the relevant [x86.lol post](https://x86.lol/).
+This repository contains a small KVM timer demo. See the relevant [x86.lol post](https://x86.lol/generic/2023/11/07/split-lock.html).
 
 ## Running with Nix
 
